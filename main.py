@@ -29,7 +29,7 @@ def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params).json()
-    return [match for match in response['response'] if match['league']['name'] in competitions_majeures]
+    return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
 # Fonction pour détecter un value bet avec des cotes entre 1.30 et 2.50
 def detect_value_bet(match):
@@ -47,7 +47,7 @@ def detect_value_bet(match):
                     return {
                         'league': match['league']['name'],
                         'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
-                        'pari': outcome['value'],
+                        'pari': f"Vainqueur : {outcome['value']}",
                         'cote': odd
                     }
     return None
