@@ -31,7 +31,7 @@ def get_daily_matches():
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures]
 
-# Fonction pour détecter un value bet simplifié
+# Fonction pour détecter un value bet avec des cotes entre 1.30 et 2.50
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
     odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}).json()
@@ -43,7 +43,7 @@ def detect_value_bet(match):
         if market['name'] == "Match Winner":
             for outcome in market['values']:
                 odd = float(outcome['odd'])
-                if 1.5 <= odd <= 2.2:
+                if 1.3 <= odd <= 2.5:
                     return {
                         'league': match['league']['name'],
                         'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
