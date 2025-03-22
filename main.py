@@ -1,6 +1,11 @@
 import requests
 import datetime
 from flask import Flask
+import logging
+
+# Supprime les logs inutiles
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 
@@ -74,7 +79,7 @@ def envoyer_message(message):
 
 @app.route('/')
 def main():
-    matches = get_daily_matches()
+    matches = get_daily_matches()[:10]  # Limite à 10 matchs analysés max
     paris_du_jour = []
 
     for match in matches:
