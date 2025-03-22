@@ -19,7 +19,8 @@ competitions_majeures = [
     "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga",
     "UEFA Champions League", "UEFA Europa League", "UEFA Europa Conference League",
     "World Cup", "European Championship", "UEFA Nations League", "Copa America",
-    "WC Qualification Europe", "EC Qualification", "Copa America Qualification"
+    "WC Qualification Europe", "WC Qualification Africa", "WC Qualification South America",
+    "EC Qualification", "Copa America Qualification"
 ]
 
 jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi',
@@ -48,7 +49,7 @@ def detect_value_bet(match):
         if market['name'] == "Match Winner":
             for outcome in market['values']:
                 odd = float(outcome['odd'])
-                if 1.3 <= odd <= 2.5:
+                if 1.4 <= odd <= 2.5:
                     return {
                         'league': match['league']['name'],
                         'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
