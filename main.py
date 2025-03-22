@@ -86,6 +86,13 @@ def envoyer_message(message):
         print("✅ Message envoyé avec succès sur Telegram.")
     else:
         print("❌ Échec de l'envoi.", response.text)
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return {"status": "Bot prêt à envoyer les paris"}, 200
 
 if __name__ == "__main__":
     paris = generer_paris()
