@@ -40,13 +40,13 @@ mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avr
 def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
-    response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params).json()
+    response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
-# Fonction pour détecter un value bet avec des cotes entre 1.30 et 2.50
+# Fonction pour détecter un value bet avec priorité sur des cotes entre 1.50 et 2.50, mais aussi des opportunités exceptionnelles au-delà
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
-    odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}).json()
+    odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}, timeout=10).json()
 
     if not odds_response['response']:
         return None
@@ -55,11 +55,20 @@ def detect_value_bet(match):
         if market['name'] == "Match Winner":
             for outcome in market['values']:
                 odd = float(outcome['odd'])
-                if 1.3 <= odd <= 2.5:
+                # Critère principal
+                if 1.5 <= odd <= 2.5:
                     return {
                         'league': match['league']['name'],
                         'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
                         'pari': f"Vainqueur : {outcome['value']}",
+                        'cote': odd
+                    }
+                # Critère exceptionnel (très forte value)
+                elif odd > 2.5 and "favori" in outcome['value'].lower():
+                    return {
+                        'league': match['league']['name'],
+                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                        'pari': f"Vainqueur (Grosse value) : {outcome['value']}",
                         'cote': odd
                     }
     return None
@@ -86,7 +95,7 @@ def envoyer_message(message):
 
 @app.route('/')
 def main():
-    matches = get_daily_matches()[:10]  # Limite à 10 matchs analysés max
+    matches = get_daily_matches()[:15]  # Limitation à 15 matchs analysés max
     paris_du_jour = []
 
     for match in matches:
