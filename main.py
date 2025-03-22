@@ -1,8 +1,16 @@
 import requests
 import datetime
 import random
+from flask import Flask
 
 WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
+
+app = Flask(__name__)
+
+# Réponse simple pour cron-job.org
+@app.route("/")
+def home():
+    return {"status": "Bot prêt à envoyer les paris"}, 200
 
 # Liste des jours et mois en français
 jours_fr = {
@@ -86,13 +94,6 @@ def envoyer_message(message):
         print("✅ Message envoyé avec succès sur Telegram.")
     else:
         print("❌ Échec de l'envoi.", response.text)
-from flask import Flask
-
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return {"status": "Bot prêt à envoyer les paris"}, 200
 
 if __name__ == "__main__":
     paris = generer_paris()
