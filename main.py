@@ -2,10 +2,20 @@ import requests
 import datetime
 import random
 
-# --- Configuration ---
 WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
 
-# Fonctions de génération fictive de paris
+# Liste des jours et mois en français
+jours_fr = {
+    'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
+    'Thursday': 'Jeudi', 'Friday': 'Vendredi', 'Saturday': 'Samedi', 'Sunday': 'Dimanche'
+}
+
+mois_fr = {
+    'January': 'janvier', 'February': 'février', 'March': 'mars', 'April': 'avril',
+    'May': 'mai', 'June': 'juin', 'July': 'juillet', 'August': 'août',
+    'September': 'septembre', 'October': 'octobre', 'November': 'novembre', 'December': 'décembre'
+}
+
 matchs_possibles = [
     ("Marseille", "Reims"),
     ("Lille", "Nice"),
@@ -37,7 +47,7 @@ def generer_paris():
         pari_texte = pari_type[0].format(home=home, away=away)
         cote = pari_type[1]
         type_pari = pari_type[2]
-        confiance = "⭐" * pari_type[3]  # étoiles
+        confiance = "⭐" * pari_type[3]
 
         paris_du_jour.append({
             "match": f"{home} vs. {away}",
@@ -50,8 +60,14 @@ def generer_paris():
     return paris_du_jour
 
 def construire_message(paris):
-    today = datetime.datetime.now().strftime("%A %d %B %Y")
-    message = f"⚽️ <b>Paris du jour – {today}</b>\n\n"
+    today = datetime.datetime.now()
+    jour_en = today.strftime("%A")
+    mois_en = today.strftime("%B")
+    jour_fr = jours_fr[jour_en]
+    mois_francais = mois_fr[mois_en]
+    date_fr = f"{jour_fr} {today.day} {mois_francais} {today.year}"
+
+    message = f"⚽️ <b>Paris du jour – {date_fr}</b>\n\n"
     for i, pari in enumerate(paris, 1):
         message += f"{i}. {pari['match']}\n"
         message += f"🔎 Pari : {pari['pari']}\n"
@@ -71,7 +87,6 @@ def envoyer_message(message):
     else:
         print("❌ Échec de l'envoi.", response.text)
 
-# --- Routine quotidienne ---
 if __name__ == "__main__":
     paris = generer_paris()
     message = construire_message(paris)
