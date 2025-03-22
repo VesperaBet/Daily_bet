@@ -1,101 +1,96 @@
 import requests
 import datetime
-import random
 from flask import Flask
-
-WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
 
 app = Flask(__name__)
 
-# Réponse simple pour cron-job.org
-@app.route("/")
-def home():
-    return {"status": "Bot prêt à envoyer les paris"}, 200
+# ===== CONFIGURATION =====
+WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
+API_KEY = "57d75879bce795736b4a4bcd9ca465d5"
+BASE_URL = "https://v3.football.api-sports.io"
+headers = {"x-apisports-key": API_KEY}
 
-# Liste des jours et mois en français
-jours_fr = {
-    'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
-    'Thursday': 'Jeudi', 'Friday': 'Vendredi', 'Saturday': 'Samedi', 'Sunday': 'Dimanche'
-}
-
-mois_fr = {
-    'January': 'janvier', 'February': 'février', 'March': 'mars', 'April': 'avril',
-    'May': 'mai', 'June': 'juin', 'July': 'juillet', 'August': 'août',
-    'September': 'septembre', 'October': 'octobre', 'November': 'novembre', 'December': 'décembre'
-}
-
-matchs_possibles = [
-    ("Marseille", "Reims"),
-    ("Lille", "Nice"),
-    ("Lyon", "Toulouse"),
-    ("Valence", "Séville"),
-    ("Lazio", "Roma"),
-    ("PSG", "Monaco"),
-    ("Naples", "Atalanta"),
-    ("Betis", "Real Sociedad"),
-    ("Lens", "Strasbourg")
+competitions_majeures = [
+    "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga",
+    "UEFA Champions League", "UEFA Europa League", "UEFA Europa Conference League",
+    "World Cup", "European Championship", "UEFA Nations League", "Copa America",
+    "WC Qualification Europe", "EC Qualification", "Copa America Qualification"
 ]
 
-paris_possibles = [
-    ("Victoire {home}", 1.60, "Pari simple", 3),
-    ("Les deux équipes marquent", 1.70, "Pari simple", 2),
-    ("+2,5 buts dans le match", 1.85, "Pari simple", 2),
-    ("Victoire {home} ou nul + +1,5 buts", 1.95, "Combiné", 3),
-    ("Score exact : 2-1", 2.10, "Pari simple", 1)
-]
+jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi',
+            'Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}
 
-def generer_paris():
-    nombre_de_paris = random.choice([1, 2])
-    paris_du_jour = []
-    matchs_du_jour = random.sample(matchs_possibles, nombre_de_paris)
+mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril',
+           'May':'mai','June':'juin','July':'juillet','August':'août',
+           'September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
-    for match in matchs_du_jour:
-        pari_type = random.choice(paris_possibles)
-        home, away = match
-        pari_texte = pari_type[0].format(home=home, away=away)
-        cote = pari_type[1]
-        type_pari = pari_type[2]
-        confiance = "⭐" * pari_type[3]
+# Fonction pour récupérer les matchs du jour
+def get_daily_matches():
+    today = datetime.datetime.today().strftime('%Y-%m-%d')
+    params = {"date": today}
+    response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params).json()
+    return [match for match in response['response'] if match['league']['name'] in competitions_majeures]
 
-        paris_du_jour.append({
-            "match": f"{home} vs. {away}",
-            "pari": pari_texte,
-            "cote": cote,
-            "type": type_pari,
-            "confiance": confiance
-        })
+# Fonction pour détecter un value bet simplifié
+def detect_value_bet(match):
+    fixture_id = match['fixture']['id']
+    odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}).json()
 
-    return paris_du_jour
+    if not odds_response['response']:
+        return None
 
+    for market in odds_response['response'][0]['bookmakers'][0]['bets']:
+        if market['name'] == "Match Winner":
+            for outcome in market['values']:
+                odd = float(outcome['odd'])
+                if 1.5 <= odd <= 2.2:
+                    return {
+                        'league': match['league']['name'],
+                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                        'pari': outcome['value'],
+                        'cote': odd
+                    }
+    return None
+
+# Construire le message Telegram
 def construire_message(paris):
     today = datetime.datetime.now()
-    jour_en = today.strftime("%A")
-    mois_en = today.strftime("%B")
-    jour_fr = jours_fr[jour_en]
-    mois_francais = mois_fr[mois_en]
-    date_fr = f"{jour_fr} {today.day} {mois_francais} {today.year}"
+    date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
 
     message = f"⚽️ <b>Paris du jour – {date_fr}</b>\n\n"
     for i, pari in enumerate(paris, 1):
-        message += f"{i}. {pari['match']}\n"
+        message += f"{i}. {pari['teams']} ({pari['league']})\n"
         message += f"🔎 Pari : {pari['pari']}\n"
         message += f"💰 Cote : {pari['cote']}\n"
-        message += f"🔹 Type : {pari['type']}\n"
-        message += f"🔸 Confiance : {pari['confiance']}\n\n"
+        message += f"🔸 Confiance : ⭐⭐⭐⭐\n\n"
 
     message += "🔁 Mise recommandée : 1 % de la bankroll par pari\n"
     message += "📈 Stratégie value / long terme / discipline stricte"
     return message
 
+# Envoyer le message via Telegram webhook
 def envoyer_message(message):
-    payload = {"message": message}
-    response = requests.post(WEBHOOK_URL, json=payload)
-    if response.status_code == 200:
-        print("✅ Message envoyé avec succès sur Telegram.")
-    else:
-        print("❌ Échec de l'envoi.", response.text)
+    requests.post(WEBHOOK_URL, json={"message": message})
 
-if __name__ == "__main__":
-    paris = generer_paris()
-    message = construire_message(paris)
-    envoyer_message(message)
+@app.route('/')
+def main():
+    matches = get_daily_matches()
+    paris_du_jour = []
+
+    for match in matches:
+        pari = detect_value_bet(match)
+        if pari:
+            paris_du_jour.append(pari)
+        if len(paris_du_jour) == 2:
+            break
+
+    if paris_du_jour:
+        message = construire_message(paris_du_jour)
+        envoyer_message(message)
+        return {"status": "Paris envoyés avec succès"}, 200
+    else:
+        envoyer_message("🚨 Aucun value bet intéressant aujourd'hui.")
+        return {"status": "Aucun pari intéressant aujourd'hui"}, 200
+
+if __name__ == '__main__':
+    app.run(debug=True)
