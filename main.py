@@ -2,6 +2,7 @@ import requests
 import datetime
 from flask import Flask
 import logging
+import random
 
 # Supprime les logs inutiles
 log = logging.getLogger('werkzeug')
@@ -43,7 +44,7 @@ def get_daily_matches():
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
-# Fonction pour détecter un value bet avec priorité sur des cotes entre 1.50 et 2.50, mais aussi des opportunités exceptionnelles au-delà
+# Détecter plusieurs types de value bet (1X2, BTTS, Buteur)
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
     odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}, timeout=10).json()
@@ -51,11 +52,13 @@ def detect_value_bet(match):
     if not odds_response['response']:
         return None
 
-    for market in odds_response['response'][0]['bookmakers'][0]['bets']:
+    bookmakers = odds_response['response'][0]['bookmakers'][0]['bets']
+
+    for market in bookmakers:
+        # Pari 1X2
         if market['name'] == "Match Winner":
             for outcome in market['values']:
                 odd = float(outcome['odd'])
-                # Critère principal
                 if 1.5 <= odd <= 2.5:
                     return {
                         'league': match['league']['name'],
@@ -63,14 +66,31 @@ def detect_value_bet(match):
                         'pari': f"Vainqueur : {outcome['value']}",
                         'cote': odd
                     }
-                # Critère exceptionnel (très forte value)
-                elif odd > 2.5 and "favori" in outcome['value'].lower():
+
+        # Pari Les deux équipes marquent
+        if market['name'] == "Both Teams Score":
+            for outcome in market['values']:
+                odd = float(outcome['odd'])
+                if outcome['value'] == "Yes" and 1.5 <= odd <= 2.5:
                     return {
                         'league': match['league']['name'],
                         'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
-                        'pari': f"Vainqueur (Grosse value) : {outcome['value']}",
+                        'pari': "Les deux équipes marquent : Oui",
                         'cote': odd
                     }
+
+        # Pari Buteur
+        if market['name'] == "Goalscorer":
+            for outcome in market['values']:
+                odd = float(outcome['odd'])
+                if 1.8 <= odd <= 3.0:
+                    return {
+                        'league': match['league']['name'],
+                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                        'pari': f"Buteur : {outcome['value']}",
+                        'cote': odd
+                    }
+
     return None
 
 # Construire le message Telegram
