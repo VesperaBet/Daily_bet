@@ -16,15 +16,6 @@ API_KEY = "57d75879bce795736b4a4bcd9ca465d5"
 BASE_URL = "https://v3.football.api-sports.io"
 headers = {"x-apisports-key": API_KEY}
 
-competitions_majeures = [
-    "Premier League", "La Liga", "Ligue 1", "Serie A", "Bundesliga",
-    "UEFA Champions League", "UEFA Europa League", "UEFA Europa Conference League",
-    "World Cup", "European Championship", "UEFA Nations League", "Copa America", "Africa Cup of Nations",
-    "CONCACAF Gold Cup", "WC Qualification Europe", "WC Qualification Africa",
-    "WC Qualification South America", "WC Qualification CONCACAF", "WC Qualification Asia",
-    "EC Qualification", "Copa America Qualification"
-]
-
 jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}
 mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril','May':'mai','June':'juin','July':'juillet','August':'août','September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
@@ -32,7 +23,7 @@ def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
-    return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
+    return response['response']  # Ne filtre plus les compétitions
 
 def get_odds(fixture_id, use_betclic=True):
     params = {"fixture": fixture_id}
@@ -115,15 +106,14 @@ def envoyer_message(message):
     requests.post(WEBHOOK_URL, json={"message": message})
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:30]
+    matches = get_daily_matches()[:15]
     paris_du_jour = []
     for match in matches:
         pari = detect_value_bet(match)
         time.sleep(1)
         if pari:
             paris_du_jour.append(pari)
-        if len(paris_du_jour) == 2:
-            break
+            break  # Un seul pari suffit
     message = construire_message(paris_du_jour) if paris_du_jour else "🚨 Aucun value bet intéressant aujourd'hui."
     envoyer_message(message)
 
