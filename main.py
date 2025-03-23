@@ -3,6 +3,7 @@ import datetime
 from flask import Flask
 import logging
 import random
+import time
 
 # Supprime les logs inutiles
 log = logging.getLogger('werkzeug')
@@ -44,18 +45,21 @@ def get_daily_matches():
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
-# Détecter plusieurs types de value bet (1X2, BTTS, Buteur)
+# Détecter value bet avec priorité 1X2 > BTTS > Buteur (léger)
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
-    odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}, timeout=10).json()
+    try:
+        odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}, timeout=10).json()
+    except Exception:
+        return None
 
     if not odds_response['response']:
         return None
 
-    bookmakers = odds_response['response'][0]['bookmakers'][0]['bets']
+    bets = odds_response['response'][0]['bookmakers'][0]['bets']
 
-    for market in bookmakers:
-        # Pari 1X2
+    # Priorité 1 : Match Winner
+    for market in bets:
         if market['name'] == "Match Winner":
             for outcome in market['values']:
                 odd = float(outcome['odd'])
@@ -67,29 +71,32 @@ def detect_value_bet(match):
                         'cote': odd
                     }
 
-        # Pari Les deux équipes marquent
+    # Priorité 2 : Les deux équipes marquent
+    for market in bets:
         if market['name'] == "Both Teams Score":
             for outcome in market['values']:
-                odd = float(outcome['odd'])
-                if outcome['value'] == "Yes" and 1.5 <= odd <= 2.5:
-                    return {
-                        'league': match['league']['name'],
-                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
-                        'pari': "Les deux équipes marquent : Oui",
-                        'cote': odd
-                    }
+                if outcome['value'] == "Yes":
+                    odd = float(outcome['odd'])
+                    if 1.5 <= odd <= 2.5:
+                        return {
+                            'league': match['league']['name'],
+                            'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                            'pari': "Les deux équipes marquent : Oui",
+                            'cote': odd
+                        }
 
-        # Pari Buteur
+    # Priorité 3 : Buteur (léger, max 1 test)
+    for market in bets:
         if market['name'] == "Goalscorer":
-            for outcome in market['values']:
-                odd = float(outcome['odd'])
-                if 1.8 <= odd <= 3.0:
-                    return {
-                        'league': match['league']['name'],
-                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
-                        'pari': f"Buteur : {outcome['value']}",
-                        'cote': odd
-                    }
+            outcome = random.choice(market['values'])
+            odd = float(outcome['odd'])
+            if 1.8 <= odd <= 3.0:
+                return {
+                    'league': match['league']['name'],
+                    'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                    'pari': f"Buteur : {outcome['value']}",
+                    'cote': odd
+                }
 
     return None
 
@@ -115,11 +122,12 @@ def envoyer_message(message):
 
 @app.route('/')
 def main():
-    matches = get_daily_matches()[:15]  # Limitation à 15 matchs analysés max
+    matches = get_daily_matches()[:8]  # Limitation à 8 matchs analysés
     paris_du_jour = []
 
     for match in matches:
         pari = detect_value_bet(match)
+        time.sleep(1)  # Pause pour ne pas surcharger l'API
         if pari:
             paris_du_jour.append(pari)
         if len(paris_du_jour) == 2:
