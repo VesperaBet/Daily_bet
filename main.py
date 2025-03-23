@@ -4,6 +4,7 @@ from flask import Flask
 import logging
 import random
 import time
+import threading
 
 # Supprime les logs inutiles
 log = logging.getLogger('werkzeug')
@@ -45,7 +46,7 @@ def get_daily_matches():
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
-# Détecter value bet avec priorité 1X2 > BTTS > Buteur (léger)
+# Détecter value bet avec priorité 1X2 > BTTS > Buteur
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
     try:
@@ -85,17 +86,17 @@ def detect_value_bet(match):
                             'cote': odd
                         }
 
-    # Priorité 3 : Buteur (léger, max 1 test)
+    # Priorité 3 : Buteur (léger)
     for market in bets:
         if market['name'] == "Goalscorer":
-            outcome = random.choice(market['values'])
-            odd = float(outcome['odd'])
-            if 1.8 <= odd <= 3.0:
+            top_choices = [o for o in market['values'] if 1.8 <= float(o['odd']) <= 3.0]
+            if top_choices:
+                outcome = random.choice(top_choices)
                 return {
                     'league': match['league']['name'],
                     'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
                     'pari': f"Buteur : {outcome['value']}",
-                    'cote': odd
+                    'cote': float(outcome['odd'])
                 }
 
     return None
@@ -120,14 +121,14 @@ def construire_message(paris):
 def envoyer_message(message):
     requests.post(WEBHOOK_URL, json={"message": message})
 
-@app.route('/')
-def main():
-    matches = get_daily_matches()[:8]  # Limitation à 8 matchs analysés
+# Fonction d'analyse en tâche de fond
+def analyser_et_envoyer():
+    matches = get_daily_matches()[:30]  # Analyse jusqu'à 30 matchs
     paris_du_jour = []
 
     for match in matches:
         pari = detect_value_bet(match)
-        time.sleep(1)  # Pause pour ne pas surcharger l'API
+        time.sleep(1)
         if pari:
             paris_du_jour.append(pari)
         if len(paris_du_jour) == 2:
@@ -135,11 +136,15 @@ def main():
 
     if paris_du_jour:
         message = construire_message(paris_du_jour)
-        envoyer_message(message)
-        return {"status": "Paris envoyés avec succès"}, 200
     else:
-        envoyer_message("🚨 Aucun value bet intéressant aujourd'hui.")
-        return {"status": "Aucun pari intéressant aujourd'hui"}, 200
+        message = "🚨 Aucun value bet intéressant aujourd'hui."
+
+    envoyer_message(message)
+
+@app.route('/')
+def main():
+    threading.Thread(target=analyser_et_envoyer).start()
+    return {"status": "Analyse en cours"}, 200
 
 if __name__ == '__main__':
     app.run(debug=True)
