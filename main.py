@@ -23,12 +23,10 @@ def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
-    return response['response']  # Ne filtre plus les compétitions
+    return response['response']
 
-def get_odds(fixture_id, use_betclic=True):
+def get_odds(fixture_id):
     params = {"fixture": fixture_id}
-    if use_betclic:
-        params["bookmaker"] = 21  # Betclic
     try:
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
@@ -77,16 +75,10 @@ def detect_value_bet(match):
     league = match['league']['name']
     teams = f"{home} vs {away}"
 
-    bets_betclic = get_odds(fixture_id, use_betclic=True)
-    bet = extract_bet_from_bets(bets_betclic, home, away)
+    bets = get_odds(fixture_id)
+    bet = extract_bet_from_bets(bets, home, away, allow_fallback=True)
     if bet:
         return {"league": league, "teams": teams, **bet}
-
-    bets_any = get_odds(fixture_id, use_betclic=False)
-    bet = extract_bet_from_bets(bets_any, home, away, allow_fallback=True)
-    if bet:
-        return {"league": league, "teams": teams, **bet}
-
     return None
 
 def construire_message(paris):
@@ -106,14 +98,14 @@ def envoyer_message(message):
     requests.post(WEBHOOK_URL, json={"message": message})
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:15]
+    matches = get_daily_matches()[:30]
     paris_du_jour = []
     for match in matches:
         pari = detect_value_bet(match)
         time.sleep(1)
         if pari:
             paris_du_jour.append(pari)
-            break  # Un seul pari suffit
+            break
     message = construire_message(paris_du_jour) if paris_du_jour else "🚨 Aucun value bet intéressant aujourd'hui."
     envoyer_message(message)
 
