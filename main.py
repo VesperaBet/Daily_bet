@@ -46,11 +46,11 @@ def get_daily_matches():
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     return [match for match in response['response'] if match['league']['name'] in competitions_majeures and match['league']['country'] != "Wales"]
 
-# Détecter value bet avec priorité 1X2 > BTTS > Buteur
+# Détecter value bet avec fallback
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
     try:
-        odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id, "bookmaker":8}, timeout=10).json()
+        odds_response = requests.get(f"{BASE_URL}/odds", headers=headers, params={"fixture": fixture_id}, timeout=10).json()
     except Exception:
         return None
 
@@ -59,7 +59,10 @@ def detect_value_bet(match):
 
     bets = odds_response['response'][0]['bookmakers'][0]['bets']
 
-    # Priorité 1 : Match Winner
+    # Liste des paris trouvés (même hors critère principal)
+    fallback_paris = []
+
+    # Match Winner (1X2)
     for market in bets:
         if market['name'] == "Match Winner":
             for outcome in market['values']:
@@ -71,8 +74,15 @@ def detect_value_bet(match):
                         'pari': f"Vainqueur : {outcome['value']}",
                         'cote': odd
                     }
+                elif odd <= 3.0:
+                    fallback_paris.append({
+                        'league': match['league']['name'],
+                        'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                        'pari': f"(Fallback) Vainqueur : {outcome['value']}",
+                        'cote': odd
+                    })
 
-    # Priorité 2 : Les deux équipes marquent
+    # Both Teams Score (BTTS)
     for market in bets:
         if market['name'] == "Both Teams Score":
             for outcome in market['values']:
@@ -85,11 +95,18 @@ def detect_value_bet(match):
                             'pari': "Les deux équipes marquent : Oui",
                             'cote': odd
                         }
+                    elif odd <= 3.0:
+                        fallback_paris.append({
+                            'league': match['league']['name'],
+                            'teams': f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                            'pari': "(Fallback) Les deux équipes marquent : Oui",
+                            'cote': odd
+                        })
 
-    # Priorité 3 : Buteur (léger)
+    # Goalscorer (buteur)
     for market in bets:
         if market['name'] == "Goalscorer":
-            top_choices = [o for o in market['values'] if 1.8 <= float(o['odd']) <= 3.0]
+            top_choices = [o for o in market['values'] if 1.8 <= float(o['odd']) <= 3.5]
             if top_choices:
                 outcome = random.choice(top_choices)
                 return {
@@ -98,6 +115,10 @@ def detect_value_bet(match):
                     'pari': f"Buteur : {outcome['value']}",
                     'cote': float(outcome['odd'])
                 }
+
+    # Si rien de parfait trouvé, retourne le meilleur fallback
+    if fallback_paris:
+        return fallback_paris[0]
 
     return None
 
