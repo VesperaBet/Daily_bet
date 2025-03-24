@@ -98,7 +98,7 @@ def envoyer_message(message):
     requests.post(WEBHOOK_URL, json={"message": message})
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:30]
+    matches = get_daily_matches()[:15]
     paris_du_jour = []
     for match in matches:
         pari = detect_value_bet(match)
