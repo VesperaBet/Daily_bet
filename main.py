@@ -92,27 +92,19 @@ def detect_value_bet(match):
 def construire_message(paris):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = "🔥 TON PARI DU JOUR 🔥
-
-"
+    message = "🔥 TON PARI DU JOUR 🔥\n\n"
 
     for i, pari in enumerate(paris, 1):
-        message += f"📅 Match : {pari['teams']} ({pari['league']})
-"
+        message += f"📅 Match : {pari['teams']} ({pari['league']})\n"
 
         match_data = next((m for m in get_daily_matches() if f"{m['teams']['home']['name']} vs {m['teams']['away']['name']}" == pari['teams']), None)
         if match_data:
             match_time = match_data['fixture']['date']
             heure = datetime.datetime.fromisoformat(match_time[:19]).strftime("%Hh%M")
-            message += f"🕒 Heure : {heure}
+            message += f"🕒 Heure : {heure}\n\n"
 
-"
-
-        message += f"🎯 Pari : {pari['pari']}
-
-"
-        message += f"💸 Cote : {pari['cote']}
-"
+        message += f"🎯 Pari : {pari['pari']}\n\n"
+        message += f"💸 Cote : {pari['cote']}\n"
 
         if match_data:
             country = match_data['league']['country']
@@ -124,16 +116,13 @@ def construire_message(paris):
                 "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
             }
             flag = drapeaux.get(country, "")
-            message += f"🏆 Championnat : {flag} {country} – {league}
-"
+            message += f"🏆 Championnat : {flag} {country} – {league}\n"
 
-    message += "
-Mise conseillée : 1 % de la bankroll
-"
-    message += "Stratégie value long terme & discipline.
-"
+    message += "\nMise conseillée : 1 % de la bankroll\n"
+    message += "Stratégie value long terme & discipline.\n"
     message += "👉 <a href='https://www.betclic.fr'>Voir sur Betclic</a>"
     return message
+
 
 def envoyer_message(message):
     requests.post(WEBHOOK_URL, json={"message": message})
