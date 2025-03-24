@@ -1,8 +1,7 @@
 import requests
 import datetime
-from flask import Flask
+from flask import Flask, request
 import logging
-import random
 import time
 import threading
 import pytz
@@ -48,7 +47,7 @@ def get_odds(fixture_id):
         pass
     return []
 
-def extract_bet_from_bets(bets, home, away, allow_fallback=True):
+def extract_bet_from_bets(bets, home, away):
     fallback_paris = []
 
     for market in bets:
@@ -58,7 +57,7 @@ def extract_bet_from_bets(bets, home, away, allow_fallback=True):
                 winner = home if outcome['value'] == "Home" else away if outcome['value'] == "Away" else "Match nul"
                 if 1.5 <= odd <= 2.5:
                     return {"pari": f"Vainqueur : {winner}", "cote": odd}
-                elif allow_fallback and odd <= 3.0:
+                elif odd <= 3.0:
                     fallback_paris.append({"pari": f"(Fallback) Vainqueur : {winner}", "cote": odd})
 
     for market in bets:
@@ -68,19 +67,10 @@ def extract_bet_from_bets(bets, home, away, allow_fallback=True):
                     odd = float(outcome['odd'])
                     if 1.5 <= odd <= 2.5:
                         return {"pari": "Les deux équipes marquent : Oui", "cote": odd}
-                    elif allow_fallback and odd <= 3.0:
+                    elif odd <= 3.0:
                         fallback_paris.append({"pari": "(Fallback) Les deux équipes marquent : Oui", "cote": odd})
 
-    for market in bets:
-        if market['name'] == "Goalscorer":
-            top_choices = [o for o in market['values'] if 1.8 <= float(o['odd']) <= 3.5]
-            if top_choices:
-                outcome = random.choice(top_choices)
-                return {"pari": f"Buteur : {outcome['value']}", "cote": float(outcome['odd'])}
-
-    if fallback_paris:
-        return fallback_paris[0]
-    return None
+    return fallback_paris[0] if fallback_paris else None
 
 def detect_value_bet(match):
     fixture_id = match['fixture']['id']
@@ -91,7 +81,7 @@ def detect_value_bet(match):
     match_time = match['fixture']['date']
 
     bets = get_odds(fixture_id)
-    bet = extract_bet_from_bets(bets, home, away, allow_fallback=False)
+    bet = extract_bet_from_bets(bets, home, away)
     if bet:
         return {
             "league": league,
@@ -102,14 +92,10 @@ def detect_value_bet(match):
         }
     return None
 
-def construire_message(pari):
+def construire_message(paris):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
     
-    tz = pytz.timezone("Europe/Paris")
-    match_datetime = datetime.datetime.fromisoformat(pari['time'][:19]).replace(tzinfo=datetime.timezone.utc).astimezone(tz)
-    heure = match_datetime.strftime("%Hh%M")
-
     drapeaux = {
         "France": "🇫🇷", "Germany": "🇩🇪", "Spain": "🇪🇸", "Italy": "🇮🇹", "England": "🇬🇧",
         "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Belgium": "🇧🇪", "Switzerland": "🇨🇭", "Austria": "🇦🇹",
@@ -117,22 +103,23 @@ def construire_message(pari):
         "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
     }
 
-    flag = drapeaux.get(pari['country'], "")
-    message = f"""🔥 TON PARI DU JOUR 🔥
+    message = f"🔥 TES PARIS DU JOUR ({date_fr}) 🔥\n\n"
 
-📅 Match : {pari['teams']} ({pari['league']})
-🕒 Heure : {heure}
-🎯 Pari : {pari['pari']}
-💸 Cote : {pari['cote']}
-🏆 Championnat : {flag} {pari['country']}
+    for pari in paris:
+        tz = pytz.timezone("Europe/Paris")
+        match_datetime = datetime.datetime.fromisoformat(pari['time'][:19]).replace(tzinfo=datetime.timezone.utc).astimezone(tz)
+        heure = match_datetime.strftime("%Hh%M")
+        flag = drapeaux.get(pari['country'], "")
+        message += f"📅 {pari['teams']} ({flag} {pari['country']} – {pari['league']})\n"
+        message += f"🕒 {heure}\n"
+        message += f"🎯 {pari['pari']}\n"
+        message += f"💸 Cote : {pari['cote']}\n\n"
 
-Mise conseillée : 1 % de la bankroll
+    message += "Mise conseillée : 1 % de la bankroll par pari\n"
+    message += "<i>Rentabilité, rigueur et maîtrise : les clés du succès.</i>\n\n"
+    message += "Code ROMATKCO : 30€ offerts en freebets 🤑\n"
+    message += "👉 https://www.betclic.fr"
 
-<i>Rentabilité, rigueur et maîtrise : les clés du succès.</i>
-
-Avec mon code ROMATKCO, profite de 30€ offerts en freebets !
-👉 https://www.betclic.fr
-"""
     return message
 
 def envoyer_message(message):
@@ -143,20 +130,56 @@ def envoyer_message(message):
         print(f"Erreur d’envoi du message : {e}")
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:10]
+    matches = get_daily_matches()[:25]
+    paris_du_jour = []
+
     for match in matches:
         pari = detect_value_bet(match)
         time.sleep(1)
         if pari:
-            message = construire_message(pari)
-            envoyer_message(message)
-            return
-    envoyer_message("🚨 Aucun value bet intéressant aujourd'hui.")
+            paris_du_jour.append(pari)
+        if len(paris_du_jour) == 2:
+            break
+
+    if paris_du_jour:
+        message = construire_message(paris_du_jour)
+    else:
+        message = "🚨 Aucun value bet intéressant aujourd'hui."
+
+    envoyer_message(message)
 
 @app.route('/')
 def main():
     threading.Thread(target=analyser_et_envoyer).start()
     return {"status": "Analyse en cours"}, 200
+
+@app.route('/telegram', methods=['POST'])
+def telegram_webhook():
+    data = request.get_json()
+
+    if 'message' in data and 'text' in data['message']:
+        message_text = data['message']['text']
+        chat_id = data['message']['chat']['id']
+
+        if message_text.lower() == '/pari':
+            threading.Thread(target=analyser_et_envoyer).start()
+            send_telegram_reply(chat_id, "🔍 Analyse en cours, tu vas recevoir les paris dans quelques secondes...")
+        else:
+            send_telegram_reply(chat_id, "Commande non reconnue. Essaie /pari pour recevoir les paris du jour.")
+    
+    return {"status": "ok"}, 200
+
+def send_telegram_reply(chat_id, text):
+    bot_token = "7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw"
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de la réponse Telegram : {e}")
 
 if __name__ == '__main__':
     app.run(debug=True)
