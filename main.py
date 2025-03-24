@@ -92,14 +92,43 @@ def detect_value_bet(match):
 def construire_message(paris):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = f"⚽️ <b>Paris du jour – {date_fr}</b>\n\n"
+    message = f"🔥 TON PARI DU JOUR 🔥
+
+"
     for i, pari in enumerate(paris, 1):
-        message += f"{i}. {pari['teams']} ({pari['league']})\n"
-        message += f"🔎 Pari : {pari['pari']}\n"
-        message += f"💰 Cote : {pari['cote']}\n"
-        message += f"🔸 Confiance : ⭐⭐⭐⭐\n\n"
-    message += "🔁 Mise recommandée : 1 % de la bankroll par pari\n"
-    message += "📈 Stratégie value / long terme / discipline stricte"
+        message += f"📅 Match : {pari['teams']} ({pari['league']})
+"
+
+        match_data = next((m for m in get_daily_matches() if f"{m['teams']['home']['name']} vs {m['teams']['away']['name']}" == pari['teams']), None)
+        if match_data:
+            match_time = match_data['fixture']['date']
+            heure = datetime.datetime.fromisoformat(match_time[:19]).strftime("%Hh%M")
+            message += f"🕒 Heure : {heure}
+
+"
+
+        message += f"🎯 Pari : {pari['pari']}
+
+"
+        message += f"💸 Cote : {pari['cote']}
+"
+
+        if match_data:
+            country = match_data['league']['country']
+            league = match_data['league']['name']
+            drapeaux = {
+                "France": "🇫🇷", "Germany": "🇩🇪", "Spain": "🇪🇸", "Italy": "🇮🇹", "England": "🇬🇧",
+                "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Belgium": "🇧🇪", "Switzerland": "🇨🇭", "Austria": "🇦🇹",
+                "Greece": "🇬🇷", "Denmark": "🇩🇰", "Sweden": "🇸🇪", "Norway": "🇳🇴", "Finland": "🇫🇮",
+                "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
+            }
+            flag = drapeaux.get(country, "")
+            message += f"🏆 Championnat : {flag} {country} – {league}
+"
+
+    message += "Mise conseillée : 1 % de la bankroll
+"
+    message += "Stratégie value long terme & discipline."
     return message
 
 def envoyer_message(message):
