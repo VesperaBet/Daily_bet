@@ -5,6 +5,7 @@ import logging
 import random
 import time
 import threading
+import pytz
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -19,14 +20,21 @@ headers = {"x-apisports-key": API_KEY}
 jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}
 mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril','May':'mai','June':'juin','July':'juillet','August':'août','September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
+europe_countries = ["France", "Germany", "Spain", "Italy", "England", "Portugal", "Netherlands", "Belgium", "Switzerland", "Austria", "Greece", "Denmark", "Sweden", "Norway", "Finland", "Poland", "Czech Republic", "Croatia", "Serbia", "Turkey"]
 
 def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     now = datetime.datetime.now()
-    europe_countries = ["France", "Germany", "Spain", "Italy", "England", "Portugal", "Netherlands", "Belgium", "Switzerland", "Austria", "Greece", "Denmark", "Sweden", "Norway", "Finland", "Poland", "Czech Republic", "Croatia", "Serbia", "Turkey"]
-    return [match for match in response['response'] if datetime.datetime.fromisoformat(match['fixture']['date'][:19]) > now and match['league']['country'] in europe_countries and all(keyword not in match['league']['name'].lower() for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])]
+
+    return [
+        match for match in response['response']
+        if datetime.datetime.fromisoformat(match['fixture']['date'][:19]) > now
+        and match['league']['country'] in europe_countries
+        and all(keyword not in match['league']['name'].lower()
+                for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
+    ]
 
 def get_odds(fixture_id):
     params = {"fixture": fixture_id}
@@ -34,17 +42,15 @@ def get_odds(fixture_id):
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
-                if bookmaker['id'] == 21:  # Betclic uniquement
-                    bets = bookmaker['bets']
-                    valid_markets = {"Match Winner", "Both Teams Score", "Goalscorer"}
-                    if any(bet['name'] in valid_markets for bet in bets):
-                        return bets
+                if bookmaker['id'] == 21:  # Betclic
+                    return bookmaker['bets']
     except:
         pass
     return []
 
 def extract_bet_from_bets(bets, home, away, allow_fallback=True):
     fallback_paris = []
+
     for market in bets:
         if market['name'] == "Match Winner":
             for outcome in market['values']:
@@ -81,68 +87,71 @@ def detect_value_bet(match):
     home = match['teams']['home']['name']
     away = match['teams']['away']['name']
     league = match['league']['name']
-    teams = f"{home} vs {away}"
+    country = match['league']['country']
+    match_time = match['fixture']['date']
 
     bets = get_odds(fixture_id)
     bet = extract_bet_from_bets(bets, home, away, allow_fallback=False)
     if bet:
-        return {"league": league, "teams": teams, **bet}
+        return {
+            "league": league,
+            "country": country,
+            "teams": f"{home} vs {away}",
+            "time": match_time,
+            **bet
+        }
     return None
 
-def construire_message(paris):
-    import pytz
+def construire_message(pari):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = "🔥 TON PARI DU JOUR 🔥\n\n"
+    
+    tz = pytz.timezone("Europe/Paris")
+    match_datetime = datetime.datetime.fromisoformat(pari['time'][:19]).replace(tzinfo=datetime.timezone.utc).astimezone(tz)
+    heure = match_datetime.strftime("%Hh%M")
 
-    for i, pari in enumerate(paris, 1):
-        message += f"📅 Match : {pari['teams']} ({pari['league']})\n"
+    drapeaux = {
+        "France": "🇫🇷", "Germany": "🇩🇪", "Spain": "🇪🇸", "Italy": "🇮🇹", "England": "🇬🇧",
+        "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Belgium": "🇧🇪", "Switzerland": "🇨🇭", "Austria": "🇦🇹",
+        "Greece": "🇬🇷", "Denmark": "🇩🇰", "Sweden": "🇸🇪", "Norway": "🇳🇴", "Finland": "🇫🇮",
+        "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
+    }
 
-        match_data = next((m for m in get_daily_matches() if f"{m['teams']['home']['name']} vs {m['teams']['away']['name']}" == pari['teams']), None)
-        if match_data:
-            match_time = match_data['fixture']['date']
-            paris_tz = pytz.timezone("Europe/Paris")
-            match_datetime = datetime.datetime.fromisoformat(match_time[:19]).replace(tzinfo=datetime.timezone.utc).astimezone(paris_tz)
-            heure = match_datetime.strftime("%Hh%M")
-            message += f"🕒 Heure : {heure}\n\n"
+    flag = drapeaux.get(pari['country'], "")
+    message = f"""🔥 TON PARI DU JOUR 🔥
 
-        message += f"🎯 Pari : {pari['pari']}\n\n"
-        message += f"💸 Cote : {pari['cote']}\n"
+📅 Match : {pari['teams']} ({pari['league']})
+🕒 Heure : {heure}
+🎯 Pari : {pari['pari']}
+💸 Cote : {pari['cote']}
+🏆 Championnat : {flag} {pari['country']}
 
-        if match_data:
-            country = match_data['league']['country']
-            league = match_data['league']['name']
-            drapeaux = {
-                "France": "🇫🇷", "Germany": "🇩🇪", "Spain": "🇪🇸", "Italy": "🇮🇹", "England": "🇬🇧",
-                "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Belgium": "🇧🇪", "Switzerland": "🇨🇭", "Austria": "🇦🇹",
-                "Greece": "🇬🇷", "Denmark": "🇩🇰", "Sweden": "🇸🇪", "Norway": "🇳🇴", "Finland": "🇫🇮",
-                "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
-            }
-            flag = drapeaux.get(country, "")
-            message += f"🏆 Championnat : {flag} {country} – {league}\n"
+Mise conseillée : 1 % de la bankroll
 
-    message += "\nMise conseillée : 1 % de la bankroll\n\n"
-    message += "<b><i>Rentabilité, rigueur et maîtrise : les clés du succès.</i></b>\n\n"
-    message += "Avec mon code ROMATKCO, profite de 30€ offerts en freebets !\n"
-    message += "👉 <a href='https://www.betclic.fr'>Voir sur Betclic</a>"
+<i>Rentabilité, rigueur et maîtrise : les clés du succès.</i>
 
+Avec mon code ROMATKCO, profite de 30€ offerts en freebets !
+👉 https://www.betclic.fr
+"""
     return message
 
-
 def envoyer_message(message):
-    requests.post(WEBHOOK_URL, json={"message": message})
+    try:
+        response = requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Erreur d’envoi du message : {e}")
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:15]
-    paris_du_jour = []
+    matches = get_daily_matches()[:10]
     for match in matches:
         pari = detect_value_bet(match)
         time.sleep(1)
         if pari:
-            paris_du_jour.append(pari)
-            break
-    message = construire_message(paris_du_jour) if paris_du_jour else "🚨 Aucun value bet intéressant aujourd'hui."
-    envoyer_message(message)
+            message = construire_message(pari)
+            envoyer_message(message)
+            return
+    envoyer_message("🚨 Aucun value bet intéressant aujourd'hui.")
 
 @app.route('/')
 def main():
