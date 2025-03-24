@@ -25,11 +25,13 @@ def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
+
+    # ✅ Correction : on utilise l'heure UTC pour éviter les erreurs
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
     return [
         match for match in response['response']
-       datetime.datetime.fromisoformat(match['fixture']['date'][:19]).replace(tzinfo=datetime.timezone.utc) > now
+        if datetime.datetime.fromisoformat(match['fixture']['date'][:19]).replace(tzinfo=datetime.timezone.utc) > now
         and match['league']['country'] in europe_countries
         and all(keyword not in match['league']['name'].lower()
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
@@ -41,7 +43,7 @@ def get_odds(fixture_id):
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
-                if bookmaker['id'] == 21:  # Betclic
+                if bookmaker['id'] == 21:  # Betclic uniquement
                     return bookmaker['bets']
     except:
         pass
@@ -95,7 +97,7 @@ def detect_value_bet(match):
 def construire_message(paris):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    
+
     drapeaux = {
         "France": "🇫🇷", "Germany": "🇩🇪", "Spain": "🇪🇸", "Italy": "🇮🇹", "England": "🇬🇧",
         "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Belgium": "🇧🇪", "Switzerland": "🇨🇭", "Austria": "🇦🇹",
@@ -124,8 +126,7 @@ def construire_message(paris):
 
 def envoyer_message(message):
     try:
-        response = requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
-        response.raise_for_status()
+        requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
     except Exception as e:
         print(f"Erreur d’envoi du message : {e}")
 
@@ -156,7 +157,6 @@ def main():
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.get_json()
-
     if 'message' in data and 'text' in data['message']:
         message_text = data['message']['text']
         chat_id = data['message']['chat']['id']
@@ -166,20 +166,16 @@ def telegram_webhook():
             send_telegram_reply(chat_id, "🔍 Analyse en cours, tu vas recevoir les paris dans quelques secondes...")
         else:
             send_telegram_reply(chat_id, "Commande non reconnue. Essaie /pari pour recevoir les paris du jour.")
-    
     return {"status": "ok"}, 200
 
 def send_telegram_reply(chat_id, text):
     bot_token = "7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw"
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
+    payload = {"chat_id": chat_id, "text": text}
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"Erreur lors de l'envoi de la réponse Telegram : {e}")
+        print(f"Erreur envoi Telegram : {e}")
 
 if __name__ == '__main__':
     app.run(debug=True)
