@@ -19,7 +19,6 @@ headers = {"x-apisports-key": API_KEY}
 jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}
 mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril','May':'mai','June':'juin','July':'juillet','August':'août','September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
-ARJEL_BOOKMAKER_IDS = [8, 18, 21, 186]  # Unibet, Winamax, Betclic, ParionsSport
 
 def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -34,7 +33,7 @@ def get_odds(fixture_id):
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
-                if bookmaker['id'] in ARJEL_BOOKMAKER_IDS:
+                if bookmaker['id'] == 21:  # Betclic uniquement
                     return bookmaker['bets']
     except:
         pass
@@ -81,7 +80,7 @@ def detect_value_bet(match):
     teams = f"{home} vs {away}"
 
     bets = get_odds(fixture_id)
-    bet = extract_bet_from_bets(bets, home, away, allow_fallback=True)
+    bet = extract_bet_from_bets(bets, home, away, allow_fallback=False)
     if bet:
         return {"league": league, "teams": teams, **bet}
     return None
