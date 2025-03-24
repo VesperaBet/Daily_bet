@@ -90,25 +90,34 @@ def detect_value_bet(match):
     return None
 
 def construire_message(paris):
+    import pytz
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = "🔥 TON PARI DU JOUR 🔥\n\n"
+    message = "🔥 TON PARI DU JOUR 🔥
+
+"
 
     for i, pari in enumerate(paris, 1):
-        message += f"📅 Match : {pari['teams']} ({pari['league']})\n"
+        message += f"📅 Match : {pari['teams']} ({pari['league']})
+"
 
         match_data = next((m for m in get_daily_matches() if f"{m['teams']['home']['name']} vs {m['teams']['away']['name']}" == pari['teams']), None)
         if match_data:
             match_time = match_data['fixture']['date']
-                        import pytz
             paris_tz = pytz.timezone("Europe/Paris")
             match_datetime = datetime.datetime.fromisoformat(match_time[:19]).replace(tzinfo=datetime.timezone.utc).astimezone(paris_tz)
             heure = match_datetime.strftime("%Hh%M")
+message += f"🕒 Heure : {heure}\\n\\n"
 
-            message += f"🕒 Heure : {heure}\n\n"
+            message += f"🕒 Heure : {heure}
 
-        message += f"🎯 Pari : {pari['pari']}\n\n"
-        message += f"💸 Cote : {pari['cote']}\n"
+"
+
+        message += f"🎯 Pari : {pari['pari']}
+
+"
+        message += f"💸 Cote : {pari['cote']}
+"
 
         if match_data:
             country = match_data['league']['country']
@@ -120,13 +129,13 @@ def construire_message(paris):
                 "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
             }
             flag = drapeaux.get(country, "")
-            message += f"🏆 Championnat : {flag} {country} – {league}\n"
+            message += f"🏆 Championnat : {flag} {country} – {league}
+"
 
-      message += "\nMise conseillée : 1 % de la bankroll\n\n"
-message += "<b><i>Rentabilité, rigueur et maîtrise : les clés du succès.</i></b>\n\n"
-message += "Avec mon code ROMATKCO, profite de 30€ offerts en freebets !\n"
+    message += "\\nMise conseillée : 1 % de la bankroll\\n\\n"
+message += "<b><i>Rentabilité, rigueur et maîtrise : les clés du succès.</i></b>\\n\\n"
+message += "Avec mon code ROMATKCO, profite de 30€ offerts en freebets !\\n"
 message += "👉 <a href='https://www.betclic.fr'>Voir sur Betclic</a>"
-
 
     return message
 
