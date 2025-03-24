@@ -19,18 +19,23 @@ headers = {"x-apisports-key": API_KEY}
 jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday':'Jeudi','Friday':'Vendredi','Saturday':'Samedi','Sunday':'Dimanche'}
 mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril','May':'mai','June':'juin','July':'juillet','August':'août','September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
+ARJEL_BOOKMAKER_IDS = [8, 18, 21, 186]  # Unibet, Winamax, Betclic, ParionsSport
+
 def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
-    return response['response']
+    now = datetime.datetime.now()
+    return [match for match in response['response'] if datetime.datetime.fromisoformat(match['fixture']['date'][:19]) > now]
 
 def get_odds(fixture_id):
     params = {"fixture": fixture_id}
     try:
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
-            return response['response'][0]['bookmakers'][0]['bets']
+            for bookmaker in response['response'][0]['bookmakers']:
+                if bookmaker['id'] in ARJEL_BOOKMAKER_IDS:
+                    return bookmaker['bets']
     except:
         pass
     return []
