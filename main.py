@@ -95,6 +95,7 @@ def construire_message(paris):
     message = "🔥 TON PARI DU JOUR 🔥
 
 "
+
     for i, pari in enumerate(paris, 1):
         message += f"📅 Match : {pari['teams']} ({pari['league']})
 "
