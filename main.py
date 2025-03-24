@@ -92,7 +92,7 @@ def detect_value_bet(match):
 def construire_message(paris):
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = f"🔥 TON PARI DU JOUR 🔥
+    message = "🔥 TON PARI DU JOUR 🔥
 
 "
     for i, pari in enumerate(paris, 1):
@@ -126,9 +126,12 @@ def construire_message(paris):
             message += f"🏆 Championnat : {flag} {country} – {league}
 "
 
-    message += "Mise conseillée : 1 % de la bankroll
+    message += "
+Mise conseillée : 1 % de la bankroll
 "
-    message += "Stratégie value long terme & discipline."
+    message += "Stratégie value long terme & discipline.
+"
+    message += "👉 <a href='https://www.betclic.fr'>Voir sur Betclic</a>"
     return message
 
 def envoyer_message(message):
