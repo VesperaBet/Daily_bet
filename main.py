@@ -93,12 +93,12 @@ def construire_message(paris):
     import pytz
     today = datetime.datetime.now()
     date_fr = f"{jours_fr[today.strftime('%A')]} {today.day} {mois_fr[today.strftime('%B')]} {today.year}"
-    message = "🔥 TON PARI DU JOUR 🔥
+    message = "🔥 TON PARI DU JOUR 🔥\n\n"
 
 "
 
     for i, pari in enumerate(paris, 1):
-        message += f"📅 Match : {pari['teams']} ({pari['league']})
+        message += f"📅 Match : {pari['teams']} ({pari['league']})\n"
 "
 
         match_data = next((m for m in get_daily_matches() if f"{m['teams']['home']['name']} vs {m['teams']['away']['name']}" == pari['teams']), None)
@@ -111,12 +111,11 @@ message += f"🕒 Heure : {heure}\\n\\n"
 
             message += f"🕒 Heure : {heure}
 
-"
-
-        message += f"🎯 Pari : {pari['pari']}
+        message += f"🎯 Pari : {pari['pari']}\n\n"
 
 "
-        message += f"💸 Cote : {pari['cote']}
+        message += f"💸 Cote : {pari['cote']}\n"
+
 "
 
         if match_data:
@@ -129,7 +128,8 @@ message += f"🕒 Heure : {heure}\\n\\n"
                 "Poland": "🇵🇱", "Czech Republic": "🇨🇿", "Croatia": "🇭🇷", "Serbia": "🇷🇸", "Turkey": "🇹🇷"
             }
             flag = drapeaux.get(country, "")
-            message += f"🏆 Championnat : {flag} {country} – {league}
+            message += f"🏆 Championnat : {flag} {country} – {league}\n"
+
 "
 
     message += "\\nMise conseillée : 1 % de la bankroll\\n\\n"
