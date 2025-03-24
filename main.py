@@ -25,7 +25,8 @@ def get_daily_matches():
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
     now = datetime.datetime.now()
-    return [match for match in response['response'] if datetime.datetime.fromisoformat(match['fixture']['date'][:19]) > now]
+    europe_countries = ["France", "Germany", "Spain", "Italy", "England", "Portugal", "Netherlands", "Belgium", "Switzerland", "Austria", "Greece", "Denmark", "Sweden", "Norway", "Finland", "Poland", "Czech Republic", "Croatia", "Serbia", "Turkey"]
+    return [match for match in response['response'] if datetime.datetime.fromisoformat(match['fixture']['date'][:19]) > now and match['league']['country'] in europe_countries and all(keyword not in match['league']['name'].lower() for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])]
 
 def get_odds(fixture_id):
     params = {"fixture": fixture_id}
