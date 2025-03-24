@@ -34,7 +34,10 @@ def get_odds(fixture_id):
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
                 if bookmaker['id'] == 21:  # Betclic uniquement
-                    return bookmaker['bets']
+                    bets = bookmaker['bets']
+                    valid_markets = {"Match Winner", "Both Teams Score", "Goalscorer"}
+                    if any(bet['name'] in valid_markets for bet in bets):
+                        return bets
     except:
         pass
     return []
