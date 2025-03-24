@@ -26,16 +26,20 @@ def get_daily_matches():
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
 
-    # ✅ Correction : on utilise l'heure UTC pour éviter les erreurs
+    print(f"📅 API a retourné {len(response['response'])} matchs bruts pour la date {today}")
+
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
-    return [
+    filtered = [
         match for match in response['response']
         if datetime.datetime.fromisoformat(match['fixture']['date'][:19]).replace(tzinfo=datetime.timezone.utc) > now
         and match['league']['country'] in europe_countries
         and all(keyword not in match['league']['name'].lower()
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
+
+    print(f"✅ Matchs après filtrage : {len(filtered)}")
+    return filtered
 
 def get_odds(fixture_id):
     params = {"fixture": fixture_id}
@@ -81,6 +85,8 @@ def detect_value_bet(match):
     league = match['league']['name']
     country = match['league']['country']
     match_time = match['fixture']['date']
+
+    print(f"🔎 Analyse du match : {home} vs {away}")
 
     bets = get_odds(fixture_id)
     bet = extract_bet_from_bets(bets, home, away)
