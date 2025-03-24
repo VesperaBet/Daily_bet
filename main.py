@@ -118,13 +118,11 @@ def construire_message(paris):
             flag = drapeaux.get(country, "")
             message += f"🏆 Championnat : {flag} {country} – {league}\n"
 
-    message += "\nMise conseillée : 1 % de la bankroll\n"
-    message += "Rentabilité, rigueur et maîtrise : les clés du succès.
-
-"
-    message += "Avec mon code ROMATKCO, profite de 30€ offerts en freebets !
-"
+        message += "\nMise conseillée : 1 % de la bankroll\n"
+    message += "Rentabilité, rigueur et maîtrise : les clés du succès.\n\n"
+    message += "Avec mon code ROMATKCO, profite de 30€ offerts en freebets !\n"
     message += "👉 <a href='https://www.betclic.fr'>Voir sur Betclic</a>"
+
     return message
 
 
