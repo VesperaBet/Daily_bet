@@ -33,7 +33,13 @@ def get_daily_matches():
     filtered = [
         match for match in response['response']
         if datetime.datetime.fromisoformat(match['fixture']['date'][:19]).replace(tzinfo=datetime.timezone.utc) > now
-        and match['league']['country'] in europe_countries
+        and (
+            match['league']['country'] in europe_countries
+            or (
+                "qualification" in match['league']['name'].lower()
+                and "world" in match['league']['name'].lower()
+            )
+        )
         and all(keyword not in match['league']['name'].lower()
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
@@ -41,13 +47,32 @@ def get_daily_matches():
     print(f"✅ Matchs après filtrage : {len(filtered)}")
     return filtered
 
+def analyser_et_envoyer():
+    matches = get_daily_matches()[:15]  # Limite à 15 matchs analysés
+    paris_du_jour = []
+
+    for match in matches:
+        pari = detect_value_bet(match)
+        time.sleep(1)
+        if pari:
+            paris_du_jour.append(pari)
+        if len(paris_du_jour) == 2:
+            break
+
+    if paris_du_jour:
+        message = construire_message(paris_du_jour)
+    else:
+        message = "🚨 Aucun value bet intéressant aujourd'hui."
+
+    envoyer_message(message)
+
 def get_odds(fixture_id):
     params = {"fixture": fixture_id}
     try:
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
-                if bookmaker['id'] == 21:  # Betclic uniquement
+                if bookmaker['id'] == 21:
                     return bookmaker['bets']
     except:
         pass
@@ -135,25 +160,6 @@ def envoyer_message(message):
         requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
     except Exception as e:
         print(f"Erreur d’envoi du message : {e}")
-
-def analyser_et_envoyer():
-    matches = get_daily_matches()[:25]
-    paris_du_jour = []
-
-    for match in matches:
-        pari = detect_value_bet(match)
-        time.sleep(1)
-        if pari:
-            paris_du_jour.append(pari)
-        if len(paris_du_jour) == 2:
-            break
-
-    if paris_du_jour:
-        message = construire_message(paris_du_jour)
-    else:
-        message = "🚨 Aucun value bet intéressant aujourd'hui."
-
-    envoyer_message(message)
 
 @app.route('/')
 def main():
