@@ -44,7 +44,9 @@ def get_daily_matches():
     return filtered
 
 def analyser_et_envoyer():
-    matches = get_daily_matches()[:15]  # Limite à 15 matchs analysés
+    print("🟢 Analyse lancée...")
+    matches = get_daily_matches()[:15]
+    print(f"📊 {len(matches)} matchs à analyser")  # Limite à 15 matchs analysés
     paris_du_jour = []
 
     for match in matches:
