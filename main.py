@@ -12,7 +12,7 @@ log.setLevel(logging.ERROR)
 app = Flask(__name__)
 
 WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
-API_KEY = "8f01c2b02fd3fdb971f54f4ede88e543"
+API_KEY = "04e7128d2c962dcc02f6467c87d66afc"
 BASE_URL = "https://v3.football.api-sports.io"
 headers = {"x-apisports-key": API_KEY}
 
@@ -25,6 +25,8 @@ def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
+
+    print(f"📅 API a retourné {len(response['response'])} matchs bruts pour la date {today}")
 
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
@@ -39,14 +41,14 @@ def get_daily_matches():
             )
         )
         and all(keyword not in (match['league']['name'] + match['teams']['home']['name'] + match['teams']['away']['name']).lower()
-                for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
+        for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
+
+    print(f"✅ Matchs après filtrage : {len(filtered)}")
     return filtered
 
 def analyser_et_envoyer():
-    print("🟢 Analyse lancée...")
-    matches = get_daily_matches()[:15]
-    print(f"📊 {len(matches)} matchs à analyser")  # Limite à 15 matchs analysés
+    matches = get_daily_matches()[:15]  # Limite à 15 matchs analysés
     paris_du_jour = []
 
     for match in matches:
@@ -109,6 +111,8 @@ def detect_value_bet(match):
     country = match['league']['country']
     match_time = match['fixture']['date']
 
+    print(f"🔎 Analyse du match : {home} vs {away}")
+
     bets = get_odds(fixture_id)
     bet = extract_bet_from_bets(bets, home, away)
     if bet:
@@ -155,7 +159,7 @@ def envoyer_message(message):
     try:
         requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
     except Exception as e:
-        pass
+        print(f"Erreur d’envoi du message : {e}")
 
 @app.route('/')
 def main():
@@ -183,7 +187,7 @@ def send_telegram_reply(chat_id, text):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        pass
+        print(f"Erreur envoi Telegram : {e}")
 
 if __name__ == '__main__':
     app.run(debug=True)
