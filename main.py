@@ -40,8 +40,8 @@ def get_daily_matches():
                 and "world" in match['league']['name'].lower()
             )
         )
-        and all(keyword not in match['league']['name'].lower()
-                for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
+        and all(keyword not in (match['league']['name'] + match['teams']['home']['name'] + match['teams']['away']['name']).lower()
+        for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
 
     print(f"✅ Matchs après filtrage : {len(filtered)}")
