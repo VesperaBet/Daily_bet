@@ -26,6 +26,8 @@ def get_daily_matches():
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
 
+    print(f"📅 API a retourné {len(response['response'])} matchs bruts pour la date {today}")
+
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
     filtered = [
@@ -36,6 +38,7 @@ def get_daily_matches():
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
 
+    print(f"✅ Matchs après filtrage : {len(filtered)}")
     return filtered
 
 def get_odds(fixture_id):
@@ -44,7 +47,7 @@ def get_odds(fixture_id):
         response = requests.get(f"{BASE_URL}/odds", headers=headers, params=params, timeout=10).json()
         if response['response']:
             for bookmaker in response['response'][0]['bookmakers']:
-                if bookmaker['id'] == 21:
+                if bookmaker['id'] == 21:  # Betclic uniquement
                     return bookmaker['bets']
     except:
         pass
@@ -82,6 +85,8 @@ def detect_value_bet(match):
     league = match['league']['name']
     country = match['league']['country']
     match_time = match['fixture']['date']
+
+    print(f"🔎 Analyse du match : {home} vs {away}")
 
     bets = get_odds(fixture_id)
     bet = extract_bet_from_bets(bets, home, away)
