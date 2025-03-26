@@ -12,7 +12,7 @@ log.setLevel(logging.ERROR)
 app = Flask(__name__)
 
 WEBHOOK_URL = "https://vesperaa-bot.onrender.com/send_paris"
-API_KEY = "8f01c2b02fd3fdb971f54f4ede88e543"
+API_KEY = "04e7128d2c962dcc02f6467c87d66afc"
 BASE_URL = "https://v3.football.api-sports.io"
 headers = {"x-apisports-key": API_KEY}
 
