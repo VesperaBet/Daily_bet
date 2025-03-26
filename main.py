@@ -41,14 +41,15 @@ def get_daily_matches():
         and all(keyword not in (match['league']['name'] + match['teams']['home']['name'] + match['teams']['away']['name']).lower()
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
+
+    print(f"📅 API a retourné {len(response['response'])} matchs pour la date {today}")  # Affiche le nombre total de matchs retournés
+    print(f"✅ Matchs après filtrage : {len(filtered)}")  # Affiche le nombre de matchs après filtrage
     return filtered
 
 def analyser_et_envoyer():
     print("🟢 Analyse lancée...")
-    print("🟢 Analyse lancée...")
     matches = get_daily_matches()[:15]
-    print(f"📊 {len(matches)} matchs à analyser")
-    print(f"📊 {len(matches)} matchs à analyser")  # Limite à 15 matchs analysés
+    print(f"📊 {len(matches)} matchs à analyser")  # Affiche le nombre de matchs analysés
     paris_du_jour = []
 
     for match in matches:
@@ -159,7 +160,7 @@ def envoyer_message(message):
     try:
         requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
     except Exception as e:
-        pass
+        print(f"Erreur d'envoi du message : {e}")
 
 @app.route('/')
 def main():
@@ -187,7 +188,7 @@ def send_telegram_reply(chat_id, text):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        pass
+        print(f"Erreur d'envoi du message : {e}")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True)  # Debug à True pour le développement
