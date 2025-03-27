@@ -26,6 +26,9 @@ def get_daily_matches():
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
 
+    # Log les données de la réponse de l'API pour s'assurer qu'on reçoit bien des matchs
+    print(f"📅 API a retourné {len(response['response'])} matchs pour la date {today}")  # Affiche le nombre total de matchs retournés
+
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
     filtered = [
@@ -42,7 +45,6 @@ def get_daily_matches():
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
     ]
 
-    print(f"📅 API a retourné {len(response['response'])} matchs pour la date {today}")  # Affiche le nombre total de matchs retournés
     print(f"✅ Matchs après filtrage : {len(filtered)}")  # Affiche le nombre de matchs après filtrage
     return filtered
 
@@ -157,8 +159,11 @@ def construire_message(paris):
     return message
 
 def envoyer_message(message):
+    print("🔄 Tentative d'envoi du message Telegram...")
+    payload = {"chat_id": "-1002553433496", "text": message}
     try:
-        requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
+        response = requests.post(f"https://api.telegram.org/bot7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw/sendMessage", json=payload, timeout=10)
+        print(f"✅ Message envoyé avec succès, réponse: {response.json()}")
     except Exception as e:
         print(f"Erreur d'envoi du message : {e}")
 
@@ -184,7 +189,7 @@ def telegram_webhook():
 def send_telegram_reply(chat_id, text):
     bot_token = "7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw"
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": "-1002553433496", "text": text}  # Chat ID mis à jour ici
+    payload = {"chat_id": chat_id, "text": text}
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
