@@ -20,14 +20,12 @@ jours_fr = {'Monday':'Lundi','Tuesday':'Mardi','Wednesday':'Mercredi','Thursday'
 mois_fr = {'January':'janvier','February':'février','March':'mars','April':'avril','May':'mai','June':'juin','July':'juillet','August':'août','September':'septembre','October':'octobre','November':'novembre','December':'décembre'}
 
 europe_countries = ["France", "Germany", "Spain", "Italy", "England", "Portugal", "Netherlands", "Belgium", "Switzerland", "Austria", "Greece", "Denmark", "Sweden", "Norway", "Finland", "Poland", "Czech Republic", "Croatia", "Serbia", "Turkey"]
+excluded_leagues = ["League One", "League Two"]  # Exclure League One et League Two
 
 def get_daily_matches():
     today = datetime.datetime.today().strftime('%Y-%m-%d')
     params = {"date": today}
     response = requests.get(f"{BASE_URL}/fixtures", headers=headers, params=params, timeout=10).json()
-
-    # Log les données de la réponse de l'API pour s'assurer qu'on reçoit bien des matchs
-    print(f"📅 API a retourné {len(response['response'])} matchs pour la date {today}")  # Affiche le nombre total de matchs retournés
 
     now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
@@ -43,8 +41,10 @@ def get_daily_matches():
         )
         and all(keyword not in (match['league']['name'] + match['teams']['home']['name'] + match['teams']['away']['name']).lower()
                 for keyword in ["reserve", "u19", "u21", "feminine", "amateur", "regional", "junior", "youth"])
+        and match['league']['name'] not in excluded_leagues  # Exclure League One et League Two
     ]
 
+    print(f"📅 API a retourné {len(response['response'])} matchs pour la date {today}")  # Affiche le nombre total de matchs retournés
     print(f"✅ Matchs après filtrage : {len(filtered)}")  # Affiche le nombre de matchs après filtrage
     return filtered
 
@@ -159,11 +159,8 @@ def construire_message(paris):
     return message
 
 def envoyer_message(message):
-    print("🔄 Tentative d'envoi du message Telegram...")
-    payload = {"chat_id": "-1002553433496", "text": message}
     try:
-        response = requests.post(f"https://api.telegram.org/bot7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw/sendMessage", json=payload, timeout=10)
-        print(f"✅ Message envoyé avec succès, réponse: {response.json()}")
+        requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
     except Exception as e:
         print(f"Erreur d'envoi du message : {e}")
 
