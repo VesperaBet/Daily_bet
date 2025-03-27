@@ -184,7 +184,7 @@ def telegram_webhook():
 def send_telegram_reply(chat_id, text):
     bot_token = "7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw"
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
+    payload = {"chat_id": "-1002553433496", "text": text}  # Chat ID mis à jour ici
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
