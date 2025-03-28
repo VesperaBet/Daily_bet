@@ -160,7 +160,17 @@ def construire_message(paris):
 
 def envoyer_message(message):
     try:
-        requests.post(WEBHOOK_URL, json={"message": message}, timeout=10)
+        # Prépare la requête pour Telegram
+        payload = {"chat_id": "-1002553433496", "text": message}
+        response = requests.post(f"https://api.telegram.org/bot7561593316:AAGPz8jaC4lz3JrXUwEQB7mKsn3GUEqApAw/sendMessage", json=payload, timeout=10)
+
+        # Log la réponse pour s'assurer qu'il n'y a pas d'erreur
+        print(f"Réponse de Telegram : {response.json()}")  # Affiche la réponse pour debug
+        if response.status_code == 200:
+            print("✅ Message envoyé avec succès")
+        else:
+            print(f"⚠️ Erreur avec l'envoi : {response.status_code} - {response.text}")
+
     except Exception as e:
         print(f"Erreur d'envoi du message : {e}")
 
